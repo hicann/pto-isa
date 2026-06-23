@@ -18,6 +18,8 @@ This directory contains the per-instruction reference for the PTO Tile Lib ISA.
 - [SETFMATRIX](SETFMATRIX.md) - Set FMATRIX register(s) for IMG2COL-like ops.
 - [SET_IMG2COL_RPT](SET_IMG2COL_RPT.md) - Set IMG2COL repeat metadata from an IMG2COL configuration tile.
 - [SET_IMG2COL_PADDING](SET_IMG2COL_PADDING.md) - Set IMG2COL padding metadata from an IMG2COL configuration tile.
+- [SET_QUANT_SCALAR](SET_QUANT_SCALAR.md) - Set the scalar quantization parameter for subsequent TPUSh operations.
+- [SET_QUANT_VECTOR](SET_QUANT_VECTOR.md) - Set the vector quantization parameter from a Scaling tile for subsequent TPUSH operations.
 
 ## Elementwise (Tile-Tile)
 - [TADD](TADD.md) - Elementwise add of two tiles.
@@ -49,6 +51,10 @@ This directory contains the per-instruction reference for the PTO Tile Lib ISA.
 - [TREM](TREM.md) - Elementwise remainder of two tiles.
 - [TFMOD](TFMOD.md) - Elementwise fmod of two tiles.
 - [TPOW](TPOW.md) - Elementwise power of two tiles.
+- [TMULADDDST](TMULADDDST.md) - Elementwise ternary op: `src0 * src1 + dst`.
+- [TSUBRELU](TSUBRELU.md) - Elementwise subtract then ReLU of two tiles.
+- [TFUSEDMULADD](TFUSEDMULADD.md) - Elementwise ternary op: `src0 * dst + src1`.
+- [TFUSEDMULADDRELU](TFUSEDMULADDRELU.md) - Elementwise ternary op: `ReLU(src0 * dst + src1)`.
 
 ## Tile-Scalar / Tile-Immediate
 - [TEXPANDS](TEXPANDS.md) - Broadcast a scalar into a destination tile.
@@ -139,6 +145,7 @@ This directory contains the per-instruction reference for the PTO Tile Lib ISA.
 - [TCONCAT](TCONCAT.md) - Concatenate two tiles horizontally along the column dimension.
 - [TInterleave](TINTERLEAVE.md) - Interleave two source tiles into an alternating even/odd element stream, split into two destination halves.
 - [TDeInterleave](TDEINTERLEAVE.md) - De-interleave source tiles back into even-position and odd-position element streams (inverse of TInterleave).
+- [TPAIRREDUCESUM](TPairReduceSum.md) - Pair-reduction sum: add every 2 adjacent elements and write results to the lower half of dst.
 
 ## Complex
 - [TPRINT](TPRINT.md) - Debug/print elements from a tile (implementation-defined).

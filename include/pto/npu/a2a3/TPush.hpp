@@ -12,6 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define TPUSH_HPP
 
 #include <pto/common/fifo.hpp>
+#include <pto/common/fixpipe.hpp>
 #include <pto/npu/a2a3/TStore.hpp>
 #include <pto/npu/a2a3/TLoad.hpp>
 
@@ -34,15 +35,15 @@ struct TPipe {
     static constexpr bool is_v2c = (DIR_TYPE == Direction::DIR_V2C);           // 2
     static constexpr bool is_both = (DIR_TYPE == Direction::DIR_BOTH);         // 3
     static constexpr bool is_v2c_ctrl = (DIR_TYPE == Direction::DIR_V2C_CTRL); // 4
-    static constexpr uint32_t SyncPeriod = SlotNum;
+    static_assert(is_c2v || is_v2c || is_both || is_v2c_ctrl,
+                  "Fix: TPipe only supports C2V or V2C or Both or V2C_CTRL communication on A2A3.");
     // get rid of codechecker warnings
+    static constexpr uint32_t SyncPeriod = SlotNum;
     static constexpr uint8_t FlagIDPlusOne = FlagID + 1;
     static constexpr uint8_t FlagIDPlusTwo = FlagID + 2;
     static constexpr uint8_t FlagIDPlusThree = FlagID + 3;
     static_assert(SlotNum >= 1, "Fix: TPipe requires SlotNum >= 1.");
     static_assert(SyncPeriod >= 1, "Fix: TPipe requires SyncPeriod >= 1.");
-    static_assert(is_c2v || is_v2c || is_both || is_v2c_ctrl,
-                  "Fix: TPipe only supports C2V or V2C or Both or V2C_CTRL communication on A2A3.");
     static_assert(FlagIDPlusOne < 16,
                   "Fix: With Both direction, FlagID + 1 must be less than 16 due to hardware limit.");
 
@@ -50,8 +51,8 @@ struct TPipe {
 
     PTO_INTERNAL static uint64_t getFFTSMsgCfg(TSyncCVMode mode, uint16_t flagID, uint16_t base_const = 0x1)
     {
-        constexpr uint16_t FFTS_MODE_BIT_START = 4;
         constexpr uint16_t FFTS_FLAG_ID_BIT_START = 8;
+        constexpr uint16_t FFTS_MODE_BIT_START = 4;
         return ((base_const & 0xf) + ((mode & 0x3) << FFTS_MODE_BIT_START) +
                 ((flagID & 0xf) << FFTS_FLAG_ID_BIT_START));
     }
@@ -59,7 +60,6 @@ struct TPipe {
     PTO_INTERNAL static bool shouldWaitFree(uint32_t tileIndex)
     {
         if constexpr (SlotNum == 1) {
-            // First push uses the empty slot; later pushes wait for TPOP free.
             return tileIndex > 0;
         } else {
             if (tileIndex < SlotNum) {
@@ -72,7 +72,7 @@ struct TPipe {
     PTO_INTERNAL static bool shouldNotifyFree(uint32_t tileIndex)
     {
         if constexpr (SlotNum == 1) {
-            return true; // With only 1 slot, producer must always notify consumer to free
+            return true;
         } else {
             return ((tileIndex + 1) % SyncPeriod) == 0;
         }
@@ -178,16 +178,15 @@ struct TPipe {
         PTO_INTERNAL void pushAcc2GMFiFo(RingFiFo &fifo, TileProd &tile)
         {
             using T = typename TileProd::DType;
-            constexpr int ProdM = TileProd::Rows;
             constexpr int ProdN = TileProd::Cols;
-            size_t entryBase = (tileIndex % RingFiFo::SLOT_NUM) * RingFiFo::SLOT_SIZE;
+            constexpr int ProdM = TileProd::Rows;
             using GlobalData = GlobalTensor<T, pto::Shape<1, 1, 1, ProdM, ProdN>, pto::Stride<1, 1, 1, ProdN, 1>>;
-            GlobalData globalTensor((__gm__ T *)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + entryOffset));
-            // store tile to GM FIFO, enable unit-flag one
+            size_t entryBase = (tileIndex % RingFiFo::SLOT_NUM) * RingFiFo::SLOT_SIZE;
+            GlobalData gmTensor((__gm__ T *)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + entryOffset));
             if constexpr (EN_UNIT_FLAG) {
-                TSTORE_IMPL<TileProd, GlobalData, AtomicType::AtomicNone, STPhase::Final>(globalTensor, tile);
+                TSTORE_IMPL<TileProd, GlobalData, AtomicType::AtomicNone, STPhase::Final>(gmTensor, tile);
             } else { // disable unit flag
-                TSTORE_IMPL(globalTensor, tile);
+                TSTORE_IMPL(gmTensor, tile);
             }
         }
 
@@ -195,9 +194,9 @@ struct TPipe {
         PTO_INTERNAL void pushVec2GMFiFo(RingFiFo &fifo, TileProd &tile)
         {
             using T = typename TileProd::DType;
-            constexpr int splitNum = 2;
             int gmValidR = tile.GetValidRow();
             int gmValidC = tile.GetValidCol();
+            constexpr int splitNum = 2;
             int gmStrideR = (Split == TileSplitAxis::TILE_LEFT_RIGHT) ? gmValidC * splitNum : gmValidC;
             size_t entryBase = (tileIndex % RingFiFo::SLOT_NUM) * RingFiFo::SLOT_SIZE;
             size_t subAIVOffset = 0;
@@ -256,6 +255,60 @@ struct TPipe {
                 pushVec2CtrlFiFo<TileProd>(fifo, tile);
             }
         }
+
+        //----------------------fixpipe features support----------------------
+        template <typename TileProd, typename TConfig>
+        using FixpipeConsType = FixpipeConsDType_t<TConfig::QuantPre, typename TileProd::DType>;
+
+        template <LayoutMode_t LayoutMode>
+        static constexpr Layout FixpipeGlobalLayout =
+            LayoutMode == LayoutMode_t::NZ2ND ? Layout::ND :
+                                                (LayoutMode == LayoutMode_t::NZ2DN ? Layout::DN : Layout::NZ);
+
+        template <typename TileProd, typename TConfig>
+        using FixpipeGlobalData =
+            GlobalTensor<FixpipeConsType<TileProd, TConfig>, pto::Shape<1, 1, 1, TileProd::Rows, TileProd::Cols>,
+                         pto::Stride<1, 1, 1, TileProd::Cols, 1>, FixpipeGlobalLayout<TConfig::LayoutMode>>;
+
+        template <typename TileProd, typename TConfig>
+        PTO_INTERNAL void pushAcc2GMFiFo(RingFiFo &fifo, TileProd &tile)
+        {
+            using T = FixpipeConsType<TileProd, TConfig>;
+            using GlobalData = FixpipeGlobalData<TileProd, TConfig>;
+            size_t entryBase = (tileIndex % RingFiFo::SLOT_NUM) * RingFiFo::SLOT_SIZE;
+            GlobalData globalTensor((__gm__ T *)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + entryOffset));
+
+            if constexpr (TConfig::AtomicT == AtomicType::AtomicAdd) {
+                SetAtomicAdd<typename GlobalData::DType>();
+            }
+            TStoreAcc<GlobalData, TileProd, TConfig::QuantPre, TConfig::ReluMode, TConfig::Phase>(
+                globalTensor.data(), tile.data(), globalTensor.GetShape(GlobalTensorDim::DIM_0),
+                globalTensor.GetShape(GlobalTensorDim::DIM_1), globalTensor.GetShape(GlobalTensorDim::DIM_2),
+                globalTensor.GetShape(GlobalTensorDim::DIM_3), globalTensor.GetShape(GlobalTensorDim::DIM_4),
+                globalTensor.GetStride(GlobalTensorDim::DIM_0), globalTensor.GetStride(GlobalTensorDim::DIM_1),
+                globalTensor.GetStride(GlobalTensorDim::DIM_2), globalTensor.GetStride(GlobalTensorDim::DIM_3),
+                globalTensor.GetStride(GlobalTensorDim::DIM_4), tile.GetValidRow(), tile.GetValidCol());
+            if constexpr (TConfig::AtomicT == AtomicType::AtomicAdd) {
+                SetAtomicNone();
+            }
+        }
+
+        // cast quant, scalar quant, vector quant
+        template <typename TileProd, typename TConfig>
+        PTO_INTERNAL void push(RingFiFo &fifo, TileProd &tile)
+        {
+            static_assert(TileProd::Loc == TileType::Acc,
+                          "Fix: the push interface with cast quant mode only suppport Acc tile type!");
+            if constexpr (is_c2v) {
+#ifdef __DAV_CUBE__
+                pushAcc2GMFiFo<TileProd, TConfig>(fifo, tile);
+#endif
+            } else if constexpr (is_both) {
+#ifdef __DAV_CUBE__
+                pushAcc2GMFiFo<TileProd, TConfig>(fifo, tile);
+#endif
+            }
+        } // end of push
     }; // end of Producer
 
     struct Consumer {
@@ -451,16 +504,16 @@ struct TPipe {
     // Initial TPUSH calls skip allocate() via shouldWaitFree (tileIndex < SlotNum, or 0 for depth 1).
     PTO_INTERNAL ~TPipe()
     {
-        const uint32_t numPopFree = prod.tileIndex / SyncPeriod;
         uint32_t numPushWait = 0;
+        const uint32_t numPopFree = prod.tileIndex / SyncPeriod;
         if (prod.tileIndex >= SyncPeriod) {
             numPushWait = prod.tileIndex / SyncPeriod;
             if ((prod.tileIndex % SyncPeriod) == 0) {
                 --numPushWait;
             }
         }
-        const uint32_t drainCount = (numPopFree > numPushWait) ? (numPopFree - numPushWait) : 0;
-        for (uint32_t i = 0; i < drainCount; ++i) {
+        const uint32_t drainCounts = (numPopFree > numPushWait) ? (numPopFree - numPushWait) : 0;
+        for (uint32_t i = 0; i < drainCounts; ++i) {
             prod.allocate();
         }
     }
@@ -500,6 +553,24 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, GlobalData &gmTensor)
 {
     (void)gmTensor;
     pipe.prod.record();
+}
+
+// TPUSH interface when NoQuant, cast, scalar, vector
+template <typename Pipe, typename TileProd, typename TConfig>
+PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
+{
+    bool isAllocate = pipe.prod.getAllocateStatus() && Pipe::shouldWaitFree(pipe.prod.tileIndex);
+    if (isAllocate) {
+        pipe.prod.allocate();
+    }
+
+    pipe.prod.template push<TileProd, TConfig>(pipe.fifo, tile);
+    pipe.prod.tileIndex++;
+
+    bool isRecord = pipe.prod.getRecordStatus();
+    if (isRecord) {
+        pipe.prod.record();
+    }
 }
 
 //---------------------multiple pipe----------------------
@@ -735,27 +806,17 @@ struct TMPipe {
             return isFree;
         }
 
-        /**
-         * wait: Block until data is ready
-         * Consumers strictly wait for data (no sparse optimization for safety).
-         */
+        // Block until data is ready
         PTO_INTERNAL void wait() const
         {
-            // Vector waits for Cube
-            // Or Cube waits for Vector
+            // Vector waits for Cube Or Cube waits for Vector
             wait_flag_dev(FlagID);
         }
 
-        /**
-         * free: Release space in FIFO
-         * 1. (iter >= Depth - Period): Silence at start. Don't signal if Producer
-         * is still enjoying the initial free buffer space.
-         * 2. (is_sync_step): Accumulate free slots and signal in batches.
-         */
+        // Release space in FIFO
         PTO_INTERNAL void free() const
         {
-            // Vector frees buffer for Cube
-            // Or Cube frees buffer for Vector
+            // Vector frees buffer for Cube Or Cube frees buffer for Vector
             if constexpr (is_c2v) {
 #ifdef __DAV_VEC__
                 // Vec consumer frees buffer for Cube

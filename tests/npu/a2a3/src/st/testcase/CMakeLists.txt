@@ -193,6 +193,8 @@ ttri
 tnot
 trelu
 taddreluconv
+tadddeqrelu
+tsubreluconv
 tands
 tors
 tshls
@@ -216,14 +218,21 @@ tconcat
 textract_vec
 tinsert_vec
 mgather
+mgather_gm2l1
 mscatter
 tpushpop_cv
+tpushpop_fixpipe
 tpushpop_vc
 tpushpop_cv_nosplit
 tpushpop_vc_nosplit
 tpushpop_dir_both
 tpushpop_subtile
+tfusedmuladd
+tmuladddst
+tsubrelu
+tfusedmuladdrelu
 syncall
+tpairreducesum
 )
 
 # Opt-in testcases: built ONLY when TEST_CASE=<name> is explicitly supplied.
@@ -240,6 +249,7 @@ if (AUTO_MODE)
   # which doesn't work for auto mode. They need to be disabled for auto mode 
   # until rewritten to adapt to auto mode
     tpushpop_cv
+    tpushpop_fixpipe
     tpushpop_vc
     tpushpop_cv_nosplit
     tpushpop_vc_nosplit

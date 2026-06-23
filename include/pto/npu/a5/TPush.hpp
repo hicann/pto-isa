@@ -13,8 +13,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <type_traits>
 #include <pto/common/fifo.hpp>
+#include <pto/common/fixpipe.hpp>
 #include <pto/npu/a5/TStore.hpp>
 #include <pto/npu/a5/TLoad.hpp>
+#include <pto/npu/a5/TMov.hpp>
+#include <pto/common/debug.h>
 
 namespace pto {
 
@@ -83,8 +86,8 @@ struct TPipe {
 
         PTO_INTERNAL void setTileId(int tIndex, int subIndex)
         {
-            tileIndex = tIndex;
             subTileIndex = subIndex;
+            tileIndex = tIndex;
         }
 
         PTO_INTERNAL int getTileId() const
@@ -231,8 +234,20 @@ struct TPipe {
             if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
                 TMOV_IMPL<TileCons, TileProd, AccToVecMode::SingleModeVec0>(vecTile, tile);
             } else if constexpr (Split == TileSplitAxis::TILE_UP_DOWN) {
+                static_assert((ProdM % 2 == 0) && (sizeof(T) == 4),
+                              "Fix: For C2V(L0C-> UB), only support up-down split with ProdM being multiple of 2 due "
+                              "to hardware requirement.");
+                PTO_ASSERT((tile.GetValidRow() % 2 == 0) && (sizeof(T) == 4),
+                           "Fix: For C2V(L0C-> UB), only support up-down split with ProdM being multiple of 2 due to "
+                           "hardware requirement.");
                 TMOV_IMPL<TileCons, TileProd, AccToVecMode::DualModeSplitM>(vecTile, tile);
             } else if constexpr (Split == TileSplitAxis::TILE_LEFT_RIGHT) {
+                static_assert((ProdN % 32 == 0) && (sizeof(T) == 4),
+                              "Fix: For C2V(L0C-> UB), only support left-right split with ProdN being multiple of 32 "
+                              "due to hardware requirement.");
+                PTO_ASSERT((tile.GetValidCol() % 32 == 0) && (sizeof(T) == 4),
+                           "Fix: For C2V(L0C-> UB), only support left-right split with ProdN being multiple of 32 due "
+                           "to hardware requirement.");
                 TMOV_IMPL<TileCons, TileProd, AccToVecMode::DualModeSplitN>(vecTile, tile);
             }
         }
@@ -256,6 +271,9 @@ struct TPipe {
                 int rowIndex = ProdM * static_cast<size_t>(get_subblockid());
                 TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(rowIndex), static_cast<uint16_t>(0));
             } else if constexpr (Split == TileSplitAxis::TILE_LEFT_RIGHT) {
+                PTO_ASSERT(tile.GetValidCol() * sizeof(T) % 32 == 0,
+                           "Fix: For V2C(UB->L1), tile's valid column must be multiple of 32 bytes due to hardware "
+                           "requirement.");
                 uint32_t colIndex = ProdN * static_cast<size_t>(get_subblockid());
                 TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(0), static_cast<uint16_t>(colIndex));
             }
@@ -314,6 +332,19 @@ struct TPipe {
         }
 
         template <typename TileProd, TileSplitAxis Split>
+        PTO_INTERNAL void pushVec2FiFoByDir(RingFiFo &fifo, TileProd &tile)
+        {
+            if constexpr (is_v2c_mat || is_both) {
+                pushVec2MatFiFo<TileProd, Split>(fifo, tile);
+            } else if constexpr (is_v2c_gm) {
+                pushVec2GMFiFo<TileProd, Split>(fifo, tile);
+            } else if constexpr (is_v2c_ctrl) {
+                pushVec2CtrlFiFo<TileProd>(fifo, tile);
+            }
+        }
+
+        // NoQuant with Split and NZ2ND, need to support NZ2NZ
+        template <typename TileProd, TileSplitAxis Split>
         PTO_INTERNAL void push(RingFiFo &fifo, TileProd &tile)
         {
             if constexpr (TileProd::Loc == TileType::Acc) {
@@ -323,15 +354,83 @@ struct TPipe {
                     pushAcc2GMFiFo<TileProd>(fifo, tile);
                 }
             } else if constexpr (TileProd::Loc == TileType::Vec) {
-                if constexpr (is_v2c_mat || is_both) {
-                    pushVec2MatFiFo<TileProd, Split>(fifo, tile);
-                } else if constexpr (is_v2c_gm) {
-                    pushVec2GMFiFo<TileProd, Split>(fifo, tile);
-                } else if constexpr (is_v2c_ctrl) {
-                    pushVec2CtrlFiFo<TileProd>(fifo, tile);
-                }
+                pushVec2FiFoByDir<TileProd, Split>(fifo, tile);
             }
         }
+
+        //---------------------------fixpipe features support---------------------------
+        template <typename TileProd, typename TConfig>
+        using FixpipeConsType = FixpipeConsDType_t<TConfig::QuantPre, typename TileProd::DType>;
+
+        template <typename TileProd, typename T, LayoutMode_t LayoutMode>
+        using FixpipeVecTile = std::conditional_t<
+            LayoutMode == LayoutMode_t::NZ2ND,
+            Tile<TileType::Vec, T, TileProd::Rows, TileProd::Cols, BLayout::RowMajor, TileProd::Rows, TileProd::Cols>,
+            std::conditional_t<LayoutMode == LayoutMode_t::NZ2DN,
+                               Tile<TileType::Vec, T, TileProd::Rows, TileProd::Cols, BLayout::ColMajor, TileProd::Rows,
+                                    TileProd::Cols>,
+                               Tile<TileType::Vec, T, TileProd::Rows, TileProd::Cols, BLayout::ColMajor, TileProd::Rows,
+                                    TileProd::Cols, SLayout::RowMajor>>>;
+
+        template <typename TileProd, typename TConfig>
+        using FixpipeGlobalData =
+            GlobalTensor<FixpipeConsType<TileProd, TConfig>, pto::Shape<1, 1, 1, TileProd::Rows, TileProd::Cols>,
+                         pto::Stride<1, 1, 1, TileProd::Cols, 1>, TConfig::LayoutMode>;
+
+        template <typename TileProd, typename TConfig>
+        PTO_INTERNAL void pushAcc2VecFiFo(RingFiFo &fifo, TileProd &tile)
+        {
+            using T = FixpipeConsType<TileProd, TConfig>;
+            using TileCons = FixpipeVecTile<TileProd, T, TConfig::LayoutMode>;
+            TileCons consTile;
+            uint64_t entryBase = (tileIndex % RingFiFo::SLOT_NUM) * RingFiFo::SLOT_SIZE;
+            TASSIGN(consTile, (uint64_t)(fifo.C2V_CONSUMER_BUF + entryBase + entryOffset));
+            TMovCcToUb<TileCons, TileProd, (AccToVecMode) static_cast<uint8_t>(TConfig::SubBlockId), TConfig::QuantPre,
+                       TConfig::ReluMode, TConfig::Phase>(consTile.data(), tile.data(), tile.GetValidRow(),
+                                                          tile.GetValidCol());
+        }
+
+        template <typename TileProd, typename TConfig>
+        PTO_INTERNAL void pushAcc2GMFiFo(RingFiFo &fifo, TileProd &tile)
+        {
+            using T = FixpipeConsType<TileProd, TConfig>;
+            using GlobalData = FixpipeGlobalData<TileProd, TConfig>;
+            size_t entryBase = (tileIndex % RingFiFo::SLOT_NUM) * RingFiFo::SLOT_SIZE;
+            GlobalData globalTensor((__gm__ T *)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + entryOffset));
+
+            if constexpr (TConfig::AtomicT == AtomicType::AtomicAdd) {
+                SetAtomicAdd<typename GlobalData::DType>();
+            }
+            TStoreAcc<GlobalData, TileProd, TConfig::QuantPre, TConfig::ReluMode, TConfig::Phase>(
+                globalTensor.data(), tile.data(), globalTensor.GetShape(GlobalTensorDim::DIM_0),
+                globalTensor.GetShape(GlobalTensorDim::DIM_1), globalTensor.GetShape(GlobalTensorDim::DIM_2),
+                globalTensor.GetShape(GlobalTensorDim::DIM_3), globalTensor.GetShape(GlobalTensorDim::DIM_4),
+                globalTensor.GetStride(GlobalTensorDim::DIM_0), globalTensor.GetStride(GlobalTensorDim::DIM_1),
+                globalTensor.GetStride(GlobalTensorDim::DIM_2), globalTensor.GetStride(GlobalTensorDim::DIM_3),
+                globalTensor.GetStride(GlobalTensorDim::DIM_4), tile.GetValidRow(), tile.GetValidCol());
+            if constexpr (TConfig::AtomicT == AtomicType::AtomicAdd) {
+                set_atomic_none();
+            }
+        }
+
+        template <typename TileProd, typename TConfig>
+        PTO_INTERNAL void pushAcc2FiFoByDir(RingFiFo &fifo, TileProd &tile)
+        {
+            if constexpr (is_c2v_ub || is_both) {
+                pushAcc2VecFiFo<TileProd, TConfig>(fifo, tile);
+            } else if constexpr (is_c2v_gm) {
+                pushAcc2GMFiFo<TileProd, TConfig>(fifo, tile);
+            }
+        }
+
+        // cast quant, scalar quant, vector quant, NZ2ND, NZ2DN, NZ2NZ
+        template <typename TileProd, typename TConfig>
+        PTO_INTERNAL void push(RingFiFo &fifo, TileProd &tile)
+        {
+            static_assert(TileProd::Loc == TileType::Acc,
+                          "Fix: the push interface with cast quant mode only suppport Acc tile type!");
+            pushAcc2FiFoByDir<TileProd, TConfig>(fifo, tile);
+        } // end of push
     };
 
     // -------------------------------------------------------------------------
@@ -635,7 +734,6 @@ struct TPipe {
  * 2. [Store]   Write data to GM
  * 3. [Commit]  Signal Consumer (Cross-Core)
  */
-
 template <typename Pipe, typename TileProd, TileSplitAxis Split, std::enable_if_t<is_tile_data_v<TileProd>, int> = 0>
 PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
 {
@@ -656,7 +754,7 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
     }
 }
 
-// interfaces when push data from GM FIFO
+// TPUSH interface when push data from GM FIFO
 template <typename Pipe, typename GlobalData, TileSplitAxis Split,
           std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
 PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, GlobalData &gmTensor)
@@ -665,6 +763,24 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, GlobalData &gmTensor)
     static_assert(Pipe::is_c2v_gm || Pipe::is_v2c_gm || Pipe::is_both_gm,
                   "Fix: TPUSH with GlobalTensor is only supported by GM FIFO directions on A5.");
     pipe.prod.template record<Split>();
+}
+
+// TPUSH interface with quant(Noquant, cast, scalar, vector, scalar)
+template <typename Pipe, typename TileProd, typename TConfig>
+PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
+{
+    bool isAllocate = pipe.prod.getAllocateStatus() && Pipe::shouldWaitFree(pipe.prod.tileIndex);
+    if (isAllocate) {
+        pipe.prod.template allocate<TileSplitAxis::TILE_NO_SPLIT>();
+    }
+
+    pipe.prod.template push<TileProd, TConfig>(pipe.fifo, tile);
+    pipe.prod.tileIndex++;
+
+    bool isRecord = pipe.prod.getRecordStatus();
+    if (isRecord) {
+        pipe.prod.template record<TileSplitAxis::TILE_NO_SPLIT>();
+    }
 }
 
 //------------------------multiple pipe------------------------

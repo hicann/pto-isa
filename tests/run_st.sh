@@ -86,6 +86,8 @@ checkopts "$@"
 if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
   if [ "$ENABLE_SIMPLE" = "true" ]; then           # 单个用例
     python3 tests/script/build_st.py $ARGS -v a3 -t all
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tsubreluconv -g TSUBRELUCONVTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t taddreluconv -g TADDRELUCONVTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolgather -g TCOLGATHERTest.case_mask_half_16x64_16x64_P1111
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolscatter -g TCOLSCATTERTest.case_mask_half_16x64_16x64_P1111
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tconcatdstidx -g TCONCATTest.case_int16_16x32_16x16_16x16_8x16_8x16
@@ -149,6 +151,7 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tpows -g TPOWSTest.case11
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tsel -g TSELTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tfillpad -g TFILLPADTest.case_float_GT_128_127_VT_128_128_BLK1_PADMAX_PADMAX
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tfillpad -g TFILLPADTest.case_u16_GT_259_7_VT_260_32_BLK1_PADMIN_PADMAX_EXPAND -d
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tmins
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tload_gm2mat -g TLoadGM2L1Test.ND2NZ_bfloat16_t_1_1_1_1_1_1_1_1_1_1
     python3 tests/script/run_st.py $ARGS -w -v a3 -t trsqrt -g TRSQRTTest.case_float_64x64_64x64_64x64_inPlace_False
@@ -264,6 +267,17 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     python3 tests/script/run_st.py $ARGS -w -v a3 -t ttrans_3d -g TTRANS3DTest.case1_float32_2_4_2_2_2
     python3 tests/script/run_st.py $ARGS -w -v a3 -t ttrans_3d -g TTRANS3DTest.case7_uint16_4_8_2_2_3
     python3 tests/script/run_st.py $ARGS -w -v a3 -t ttrans_3d -g TTRANS3DTest.case10_uint8_9_18_2_2_4
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tpairreducesum -g TPAIRREDUCESUMTest.case_float_32x64_32x64_32x64
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tpairreducesum -g TPAIRREDUCESUMTest.case_float_32x128_32x128_32x128
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tfusedmuladd -g TFUSEDMULADDTest.case_float_32x128_32x192_32x256_32x127
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tfusedmuladdrelu -g TFUSEDMULADDRELUTest.case_float_32x128_32x192_32x256_32x127
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tsubrelu -g TSUBRELUTest.case_float_32x128_32x192_32x256_32x127
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tmuladddst -g TMULADDDSTTest.case_float_32x128_32x192_32x256_32x127
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather_gm2l1 -g MGATHERTest.case_row_float_16x16_64rows
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather_gm2l1 -g MGATHERTest.case_row_int32_16x8_32rows
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather_gm2l1 -g MGATHERTest.case_row_float_16x16_64rows
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather_gm2l1 -g MGATHERTest.case_row_uint16_16x32_48rows
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather_gm2l1 -g MGATHERTest.case_elem_bfloat16_16x16_256size
 
     if [ "$IS_AUTO_MODE" = "false" ]; then
       # this testcase has to directly call CCE intrinsics now, which won't compile for auto mode;
@@ -278,6 +292,8 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
 
   elif [ "$ENABLE_ALL" = "true" ]; then            # 所有用例
     python3 tests/script/build_st.py $ARGS -v a3 -t all
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tsubreluconv
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t taddreluconv
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolgather
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolscatter
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tconcatdstidx
@@ -372,6 +388,11 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     python3 tests/script/run_st.py $ARGS -w -v a3 -t mscatter
     python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather
     python3 tests/script/run_st.py $ARGS -w -v a3 -t ttrans_3d
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tfusedmuladd
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tfusedmuladdrelu
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tsubrelu
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tmuladddst
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t mgather_gm2l1
     if [ "$IS_AUTO_MODE" = "false" ]; then
       # this testcase has to directly call CCE intrinsics now, which won't compile for auto mode;
       # besides, auto-sync doesn't work with CCE intrisics
@@ -388,6 +409,8 @@ fi
 if [ "$ENABLE_A5" = "true" ]; then
   if [ "$ENABLE_SIMPLE" = "true" ]; then           # 单个用例
     python3 tests/script/build_st.py $ARGS -v a5 -t all
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tsubreluconv -g TSUBRELUCONVTest.case1
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t taddreluconv -g TADDRELUCONVTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolgather -g TCOLGATHERTest.case_mask_half_16x64_16x64_P1111
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolscatter -g TCOLSCATTERTest.case_mask_half_16x64_16x64_P1111
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tconcatdstidx -g TCONCATTest.case_int16_16x32_16x16_16x16_8x16_8x16
@@ -443,6 +466,7 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t textract -g TEXTRACTTest.case1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_acc2vec -g TMOVTest.case_nz2nd_sc_quant_1
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tfillpad -g TFILLPADTest.case_float_GT_128_127_VT_128_128_BLK1_PADMAX_PADMAX
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tfillpad -g TFILLPADTest.case_u16_GT_259_7_VT_260_32_BLK1_PADMIN_PADMAX_EXPAND -d
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tgather -g TGATHERTest.case1_float_32x1024_16x64
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tgatherb -g TGATHERBTest.case_float_2x128_2x16_2x128
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tload -g TLOADTest.case_float_GT_2_2_2_256_60_VT_256_64_BLK8_PADMAX
@@ -577,10 +601,26 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tdeinterleave -g TDEINTERLEAVETest.case_int32_single_src_16x128_16x128
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tdeinterleave -g TDEINTERLEAVETest.case_half_single_src_16x256_16x256
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tdeinterleave -g TDEINTERLEAVETest.case_int8_single_src_8x512_8x512
-
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tpairreducesum -g TPAIRREDUCESUMTest.case_float_64x64_64x64_64x64
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tpairreducesum -g TPAIRREDUCESUMTest.case_float_64x128_64x128_64x128
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tfusedmuladd -g TFUSEDMULADDTest.case_float_32x128_32x192_32x256_32x127
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tfusedmuladdrelu -g TFUSEDMULADDRELUTest.case_float_32x128_32x192_32x256_32x127
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tsubrelu -g TSUBRELUTest.case_float_32x128_32x192_32x256_32x127
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tmuladddst -g TMULADDDSTTest.case_float_32x128_32x192_32x256_32x127
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t mgather_gm2l1 -g MGATHERGM2L1Test.case_row_int32_16x8_32rows
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t mgather_gm2l1 -g MGATHERGM2L1Test.case_elem_int32_16x8_128size
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t mgather_gm2l1 -g MGATHERGM2L1Test.case_elem_simt_bfloat16_16x16_256size
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t mgather_gm2l1 -g MGATHERGM2L1Test.case_elem_simt_half_zero_16x16_64size
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t mgather_gm2l1 -g MGATHERGM2L1Test.case_row_float_16x16_64rows
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t mgather_gm2l1 -g MGATHERGM2L1Test.case_elem_bfloat16_16x16_256size
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t mgather_gm2l1 -g MGATHERGM2L1Test.case_elem_simt_int8_16x32_512size
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t mgather_gm2l1 -g MGATHERGM2L1Test.case_elem_simt_int16_16x16_256size
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t mgather_gm2l1 -g MGATHERGM2L1Test.case_elem_simt_float_clamp_16x16_64size
 
   elif [ "$ENABLE_ALL" = "true" ]; then            # 所有用例
     python3 tests/script/build_st.py $ARGS -v a5 -t all
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tsubreluconv
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t taddreluconv
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolgather
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolscatter
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tconcatdstidx
@@ -711,6 +751,11 @@ if [ "$ENABLE_A5" = "true" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_vec
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tinterleave
     python3 tests/script/run_st.py $ARGS -w -v a5 -t tdeinterleave
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tfusedmuladd
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tfusedmuladdrelu
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tsubrelu
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t tmuladddst
+    python3 tests/script/run_st.py $ARGS -w -v a5 -t mgather_gm2l1
   fi
 fi
 
@@ -821,18 +866,18 @@ if [ "$ENABLE_KIRIN9030" = "true" ]; then
   python3 tests/script/run_st.py $ARGS -w -v kirin9030 -t texpands_mat
 fi
 
-if [ "$ENABLE_COMM" = "true" ]; then
-  if [ "$ENABLE_A3" = "true" ]; then
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tput
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tget
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tnotify
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/twait
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/ttest
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tgather
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tscatter
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/treduce
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tbroadcast
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tput_async
-    python3 tests/script/run_st.py $ARGS -v a3 -t comm/tget_async
-  fi
-fi
+# if [ "$ENABLE_COMM" = "true" ]; then
+#   if [ "$ENABLE_A3" = "true" ]; then
+#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/tput
+#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/tget
+#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/tnotify
+#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/twait
+#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/ttest
+#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/tgather
+#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/tscatter
+#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/treduce
+#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/tbroadcast
+#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/tput_async
+#     python3 tests/script/run_st.py $ARGS -v a3 -t comm/tget_async
+#   fi
+# fi

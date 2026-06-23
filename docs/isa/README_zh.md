@@ -18,6 +18,8 @@
 - [SETFMATRIX](SETFMATRIX_zh.md) - 为类 IMG2COL 操作设置 FMATRIX 寄存器。
 - [SET_IMG2COL_RPT](SET_IMG2COL_RPT_zh.md) - 从 IMG2COL 配置 Tile 设置 IMG2COL 重复次数元数据。
 - [SET_IMG2COL_PADDING](SET_IMG2COL_PADDING_zh.md) - 从 IMG2COL 配置 Tile 设置 IMG2COL 填充元数据。
+- [SET_QUANT_SCALAR](SET_QUANT_SCALAR_zh.md) - 设置标量量化参数，用于后续 TPUSH 操作。
+- [SET_QUANT_VECTOR](SET_QUANT_VECTOR_zh.md) - 从 Scaling Tile 设置向量量化参数，用于后续 TPUSH 操作。
 
 ## 逐元素（Tile-Tile）
 - [TADD](TADD_zh.md) - 两个 Tile 的逐元素加法。
@@ -49,6 +51,10 @@
 - [TREM](TREM_zh.md) - 两个 Tile 的逐元素余数，余数符号与除数相同。
 - [TFMOD](TFMOD_zh.md) - 两个 Tile 的逐元素余数，余数符号与被除数相同。
 - [TPOW](TPOW_zh.md) - 两个 Tile 的逐元素幂运算。
+- [TMULADDDST](TMULADDDST.md) - 三元逐元素运算：`src0 * src1 + dst`。
+- [TSUBRELU](TSUBRELU.md) - src0和src1逐元素相减后ReLU。
+- [TFUSEDMULADD](TFUSEDMULADD.md) - 三元逐元素运算：`src0 * dst + src1`。
+- [TFUSEDMULADDRELU](TFUSEDMULADDRELU.md) - 三元逐元素运算：`ReLU(src0 * dst + src1)`。
 
 ## Tile-标量 / Tile-立即数
 - [TEXPANDS](TEXPANDS_zh.md) - 将标量广播到目标 Tile 中。
@@ -139,6 +145,7 @@
 - [TCONCAT](TCONCAT_zh.md) - 将两个 Tile 沿列维度水平拼接。
 - [TInterleave](TINTERLEAVE_zh.md) - 将两个源 Tile 交织为交替的偶/奇元素流，拆分为两个目标半部分。
 - [TDeInterleave](TDEINTERLEAVE_zh.md) - 将源 Tile 反交织为偶数位置和奇数位置的元素流（TInterleave 的逆操作）。
+- [TPAIRREDUCESUM](TPairReduceSum_zh.md) - 对归约求和：将每两个相邻元素相加，结果写入目标 Tile 的下半部分。
 
 ## 复杂指令
 - [TPRINT](TPRINT_zh.md) - 调试/打印 Tile 中的元素（实现定义）。

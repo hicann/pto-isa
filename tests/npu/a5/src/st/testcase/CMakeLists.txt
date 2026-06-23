@@ -155,6 +155,8 @@ set(ALL_TESTCASES
     tshr
     tshrs
     tadd
+    taddreluconv
+    tadddeqrelu
     tpartadd
     tpartmul
     tfillpad
@@ -222,6 +224,7 @@ set(ALL_TESTCASES
     tdequant
     trandom
     mgather
+    mgather_gm2l1
     mscatter
     t_dhrystone
     tpow
@@ -240,6 +243,7 @@ set(ALL_TESTCASES
     syncall
     tpushpop_cv
     tpushpop_cv_nosplit
+    tpushpop_fixpipe
     tpushpop_vc
     tpushpop_vc_nosplit
     tpushpop_dir_both
@@ -255,6 +259,7 @@ set(ALL_TESTCASES
 set(OPT_IN_TESTCASES
 # Device-side async L2 prefetch: correctness + focused perf comparison
 tprefetch_async
+tquant_dn
 )
 
 if (AUTO_MODE)
@@ -264,6 +269,7 @@ if (AUTO_MODE)
   # until rewritten to adapt to auto mode
     tpushpop_cv
     tpushpop_cv_nosplit
+    tpushpop_fixpipe
     tpushpop_vc
     tpushpop_vc_nosplit
     tpushpop_dir_both
@@ -283,6 +289,7 @@ if (AUTO_MODE)
     tmatmul
     tmatmul_mx
     tmov_zz
+    tquant_dn
   )
 
   foreach(whitelisted_case ${AUTO_MODE_WHITELIST})

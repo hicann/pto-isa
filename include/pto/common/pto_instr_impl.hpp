@@ -67,6 +67,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TRowExpandAdd.hpp"
 #include "pto/npu/a2a3/TImg2col.hpp"
 #include "pto/npu/a2a3/SetFmatrix.hpp"
+#include "pto/npu/a2a3/TPairReduceSum.hpp"
 #else
 #include "pto/npu/a2a3/TAssign.hpp"
 #include "pto/npu/a2a3/TAlias.hpp"
@@ -128,6 +129,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/SetFmatrix.hpp"
 #include "pto/npu/a2a3/SetImg2colRpt.hpp"
 #include "pto/npu/a2a3/SetImg2colPadding.hpp"
+#include "pto/npu/a2a3/SetQuantScalar.hpp"
+#include "pto/npu/a2a3/SetQuantVector.hpp"
 #include "pto/npu/a2a3/TSubView.hpp"
 #ifdef _DEBUG
 #include "pto/npu/a2a3/TPrint.hpp"
@@ -152,6 +155,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TTri.hpp"
 #include "pto/npu/a2a3/TLRelu.hpp"
 #include "pto/npu/a2a3/TAddReluConv.hpp"
+#include "pto/npu/a2a3/TSubReluConv.hpp"
 #include "pto/npu/a2a3/TPrefetch.hpp"
 #include "pto/npu/a2a3/TPrelu.hpp"
 #include "pto/npu/a2a3/TInsert.hpp"
@@ -167,11 +171,17 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TColExpandExpdif.hpp"
 #include "pto/npu/a2a3/TQuant.hpp"
 #include "pto/npu/a2a3/TDequant.hpp"
+#include "pto/npu/a2a3/TAddDeqRelu.hpp"
 #include "pto/npu/a2a3/TPush.hpp"
 #include "pto/npu/a2a3/TPop.hpp"
 #include "pto/npu/a2a3/TAlloc.hpp"
 #include "pto/npu/a2a3/TFree.hpp"
 #include "pto/npu/a2a3/TColReduceIdx.hpp"
+#include "pto/npu/a2a3/TPairReduceSum.hpp"
+#include "pto/npu/a2a3/TFusedMulAdd.hpp"
+#include "pto/npu/a2a3/TMulAddDst.hpp"
+#include "pto/npu/a2a3/TSubRelu.hpp"
+#include "pto/npu/a2a3/TFusedMulAddRelu.hpp"
 #endif
 #endif
 
@@ -228,6 +238,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TTrans.hpp"
 #include "pto/npu/a5/TLRelu.hpp"
 #include "pto/npu/a5/TAddReluConv.hpp"
+#include "pto/npu/a5/TSubReluConv.hpp"
+#include "pto/npu/a5/TAddDeqRelu.hpp"
 #include "pto/npu/a5/Tci.hpp"
 #include "pto/npu/a5/TSels.hpp"
 #include "pto/npu/a5/TSel.hpp"
@@ -258,6 +270,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/SetFmatrix.hpp"
 #include "pto/npu/a5/SetImg2colRpt.hpp"
 #include "pto/npu/a5/SetImg2colPadding.hpp"
+#include "pto/npu/a5/SetQuantScalar.hpp"
+#include "pto/npu/a5/SetQuantVector.hpp"
 
 #include "pto/npu/a5/THistogram.hpp"
 #ifdef _DEBUG
@@ -291,6 +305,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TColReduceIdx.hpp"
 #include "pto/npu/a5/TInterleave.hpp"
 #include "pto/npu/a5/TDeInterleave.hpp"
+#include "pto/npu/a5/TPairReduceSum.hpp"
+#include "pto/npu/a5/TFusedMulAdd.hpp"
+#include "pto/npu/a5/TMulAddDst.hpp"
+#include "pto/npu/a5/TSubRelu.hpp"
+#include "pto/npu/a5/TFusedMulAddRelu.hpp"
 #endif
 
 #ifdef PTO_NPU_ARCH_KIRIN9030
@@ -386,7 +405,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/cpu/THistogram.hpp"
 #include "pto/cpu/TQuant.hpp"
 #include "pto/cpu/TSubView.hpp"
-#include "pto/cpu/MGatherScatter.hpp"
+#include "pto/cpu/MGather.hpp"
+#include "pto/cpu/MScatter.hpp"
 #include "pto/cpu/TPush.hpp"
 #include "pto/cpu/TPop.hpp"
 #include "pto/cpu/comm/TBroadcast.hpp"
