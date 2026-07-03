@@ -6,11 +6,11 @@
 
 ## Introduction
 
-**DN** (Down-column Normal) denotes MX quantization with groups of 32 along **axis 0**
-(rows), as opposed to the default **ND** (Normal) which groups along **axis 1** (columns).
-Both modes produce RowMajor tiles — "DN" refers only to the *grouping direction*, not
-the storage layout. DN is used in FlashAttention where the softmax output (P matrix)
-has its natural grouping along the M (row) dimension.
+**ND** ("normal direction") is the default MX grouping: groups of 32 along **axis 1**
+(columns). **DN** denotes the transposed-style grouping along **axis 0** (rows) — groups
+of 32 consecutive rows. Both modes produce RowMajor tiles; "DN"/"ND" refers only to the
+*grouping axis*, not the storage layout. DN is used in FlashAttention where the softmax
+output (P matrix) has its natural grouping along the M (row) dimension.
 
 After DN quantization, the FP8 data is converted to NZ via the stock `TMOV(ND→NZ)` and
 the E8M0 exponents are converted to ZZ via the new `TMOV<grp_axis=0>(DN→ZZ)`.
@@ -116,6 +116,14 @@ The FA fused softmax macro's `vshls+vor` byte-pack is, *at `M̂=4, N=64` only*,
 mathematically identical to the transpose step of this recipe. It cannot generalize
 (requires `M̂≤4` to fit a B32 word, and `N≤64` for single-VL). `TMovDnTo2Zz` is the
 general replacement.
+
+### Implementation notes
+
+`TMovDnTo2Zz` uses `vlds + vintlv + vsstb` (block-strided scatter, `blockStride = numPairs`)
+with `CreatePredicate` auto-decrement for the tail — no scalar computation, no branching, no
+static predicates. The `vsstb` **5-arg POST_UPDATE** form is required; the 4-arg form
+interprets `offset` as a source-register offset, not the stride config. See
+`include/pto/npu/a5/TMov.hpp` (`GenerateB8IndicesDN2ZZToUB`).
 
 ## TMOV Interface
 
