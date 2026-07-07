@@ -39,6 +39,7 @@ find_package(Threads REQUIRED)
 set(ALL_TESTCASES
 hashfind
 mgather
+mgather_gm2l1
 mscatter
 setgetval
 tabs
@@ -95,6 +96,7 @@ tmins
 tmov
 tmrgsort
 tmul
+tmuladddst
 tmuls
 tneg
 tnot
@@ -143,6 +145,7 @@ tstore_quant
 tstore_conv
 tsub
 tsubc
+tsubrelu
 tsubs
 tsubsc
 tsubview

@@ -11,6 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define TSORT32_HPP
 
 #include <algorithm>
+#include <iterator>
 #include <type_traits>
 #include <vector>
 #include <pto/common/pto_tile.hpp>
@@ -75,10 +76,16 @@ PTO_INTERNAL void TSort32(typename TileDataDst::TileDType dst, typename TileData
                 if constexpr (sizeof(T) == sizeof(half)) {
                     dst[dstOffset + t] = segment[num].score;
                     dst[dstOffset + t + 1] = 0;
-                    memcpy(&dst[dstOffset + t + halfStride], &segment[num].index, sizeof(uint32_t));
+
+                    const uint8_t *srcPtr = reinterpret_cast<const uint8_t *>(&segment[num].index);
+                    uint8_t *dstPtr = reinterpret_cast<uint8_t *>(&dst[dstOffset + t + halfStride]);
+                    std::copy(srcPtr, srcPtr + sizeof(uint32_t), dstPtr);
                 } else {
                     dst[dstOffset + t] = segment[num].score;
-                    memcpy(&dst[dstOffset + t + 1], &segment[num].index, sizeof(uint32_t));
+
+                    const uint8_t *srcPtr = reinterpret_cast<const uint8_t *>(&segment[num].index);
+                    uint8_t *dstPtr = reinterpret_cast<uint8_t *>(&dst[dstOffset + t + 1]);
+                    std::copy(srcPtr, srcPtr + sizeof(uint32_t), dstPtr);
                 }
                 num++;
                 t += totalByte / sizeof(T);
@@ -93,17 +100,17 @@ PTO_INTERNAL void TSORT32_IMPL(TileDataDst &dst, TileDataSrc &src, TileDataIdx &
     using T = typename TileDataSrc::DType;
     static_assert(std::is_same_v<T, int32_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, half> ||
                       std::is_same_v<T, bfloat16_t> || std::is_same_v<T, float>,
-                  "TSORT32: Invalid data type.");
+                  "TSort32: Invalid data type.");
     static_assert(std::is_same_v<typename TileDataDst::DType, T>,
                   "The Src data type must be consistent with the dst data type");
     static_assert(std::is_same_v<typename TileDataIdx::DType, uint32_t>, "The Idx data type must be uint32");
     static_assert(TileDataSrc::RowStride == TileDataIdx::RowStride,
                   "The Src stride must be consistent with the idx stride");
     static_assert(TileDataSrc::isRowMajor && TileDataIdx::isRowMajor && TileDataDst::isRowMajor,
-                  "TSORT32: only RowMajor tiles are supported in CPU sim");
+                  "TSort32: only RowMajor tiles are supported in CPU sim");
     static_assert(TileDataSrc::SFractal == SLayout::NoneBox && TileDataIdx::SFractal == SLayout::NoneBox &&
                       TileDataDst::SFractal == SLayout::NoneBox,
-                  "TSORT32: only NoneBox tiles are supported in CPU sim");
+                  "TSort32: only NoneBox tiles are supported in CPU sim");
 
     const int validRow = src.GetValidRow();
     const int validCol = src.GetValidCol();
